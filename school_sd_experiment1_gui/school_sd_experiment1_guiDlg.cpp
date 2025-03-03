@@ -13,9 +13,6 @@
 #endif
 #include <atlconv.h>
 
-//x^3 -7x^2 +15x -9 = 0;
-//1 4	
-
 // forward declare
 class Element;
 
@@ -35,6 +32,7 @@ public:
 
 	Element() = default;
 
+	// 计算当前项元素值, 忽略返回值予以警告
 	[[nodiscard]] double value(const double val) const
 	{
 		if ((this->ratio) == 0) return 0;
@@ -42,21 +40,24 @@ public:
 		if ((this->power) == 0) return (this->ratio);
 		return (this->ratio) * std::pow(val, this->power);
 	}
-
-	auto operator<=>(const Element other) const
+	// 重载三项比较运算符
+	[[nodiscard]] auto operator<=>(const Element other) const
 	{
 		return this->power <=> other.power;
 	}
-	double operator*(const double val) const
+	// 重载乘法运算符
+	[[nodiscard]] double operator*(const double val) const
 	{
 		return this->value(val);
 	}
+	// 友元函数版本
 	friend double operator*(const double val, const Element element)
 	{
 		return element.value(val);
 	}
-
+	// 获取多项式元素
 	void get_terms(const std::string& equation);
+	// 解多项式
 	[[nodiscard]] std::vector<double> solve(const std::pair<double, double>& x_range) const;
 };	
 
@@ -80,15 +81,21 @@ std::vector<std::string> extract_terms(const std::string& equation) {
 
 	std::string express{ equation };
 
-	std::transform(express.begin(), express.end(), express.begin(), 
-    [](const unsigned char c) { return std::tolower(static_cast<int>(c), std::locale()); });
+	// 利用STL, lambda表达式,格式化表达式字符串
+	std::transform(express.begin(), express.end(), express.begin(),
+		[](const unsigned char c) {
+			return std::tolower(static_cast<int>(c), std::locale()); });
+	std::erase_if(express, [](const unsigned char c) {
+		return std::isspace(static_cast<int>(c), std::locale()); });
 
+	// 利用正则表达式提取各项
     std::vector<std::string> terms;
     std::regex const term_regex(R"(\s*([+-]?(\d*\.?\d*)x(\^\d+)?|\s*[+-]?(\d*\.?\d*)x|\s*[+-]?(\d*\.?\d+))\s*)");
 
     std::sregex_token_iterator it(express.begin(), express.end(), term_regex, 0);
     std::sregex_token_iterator const end;
 
+	// 提取各项
     while (it != end) {
         terms.push_back(it->str());
         ++it;
@@ -98,7 +105,7 @@ std::vector<std::string> extract_terms(const std::string& equation) {
 }
 
 /**
- * @brief 解析各项元素,提取成统一多项式
+ * @brief 解析各项元素,提取成统一多项式. 根据各个元素的系数和次数以及符号, 进行辨别,操作
  * @param terms 
  * @return 
  */
@@ -155,7 +162,7 @@ std::vector<double> solve_polynomial(const std::vector<Element>& polynomial,
 		for (const auto& ele : polynomial) {
 			result += (ele * solve);
 		}
-		if (result == 0) {
+		if (result == 0.0) {
 			solve_stack.push_back(solve);
 		}
 		result = 0;
@@ -232,8 +239,8 @@ BOOL Cschoolsdexperiment1guiDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	m_inputText = TEXT("Input a polynomial. Example: 3X^4+2x^2+3X-4=5");
-	m_inputRange = TEXT("Input x range. Example: 2 3 (' ' to separate, Default is [1, 100]");
+	m_inputText = TEXT("输入一个多项式. 示例 : 3X^4 + 2x^2 + 3X -4 = 5");
+	m_inputRange = TEXT("输入 x 的范围. 示例 : 2 3 (使用' '来分割, 默认范围为 [1, 100]");
 	UpdateData(FALSE);
 
 	// 将“关于...”菜单项添加到系统菜单中。
@@ -332,16 +339,16 @@ void Cschoolsdexperiment1guiDlg::OnBnClickedButton1()
 	UpdateData(TRUE);
 
 	int input_equation_length = WideCharToMultiByte(CP_UTF8, 0, m_inputText, -1,
-		NULL, 0, NULL, nullptr);
+		nullptr, 0, nullptr, nullptr);
 	std::string temp_equation(input_equation_length - 1, '\0');
 	WideCharToMultiByte(CP_UTF8, 0, m_inputText, -1, &temp_equation[0], 
-		input_equation_length, NULL, NULL);
+		input_equation_length, nullptr, nullptr);
 
 	int input_range_length = WideCharToMultiByte(CP_UTF8, 0, m_inputRange, -1,
-		NULL, 0, NULL, nullptr);
+		nullptr, 0, nullptr, nullptr);
 	std::string temp_range(input_equation_length - 1, '\0');
 	WideCharToMultiByte(CP_UTF8, 0, m_inputRange, -1, &temp_range[0], 
-		input_equation_length, NULL, NULL);
+		input_equation_length, nullptr, nullptr);
 
 
 	std::string equation = "3X^4 +2x^2+3X -4= 5";
@@ -351,31 +358,33 @@ void Cschoolsdexperiment1guiDlg::OnBnClickedButton1()
 	
 	if (std::istringstream stream(temp_range);
 		stream >> x_range.first >> x_range.second) {
-		auto x = std::format("已输入正确范围, Ranges is : [{} {}]", x_range.first, x_range.second);
+		auto x = std::format("已输入正确范围, 范围是 : [{} {}]", x_range.first, x_range.second);
 		m_inputRange = CA2WEX(x.c_str());
 	} else {
-		m_inputRange = TEXT("未输入正确范围, 范围默认为 [1, 100]");
+		m_inputRange = TEXT("未输入正确范围, 范围默认为 [0, 100]");
 	}
 
 
-	if (!equation.contains('x') && !equation.contains('X')) {
-		m_inputText = TEXT("Input Error! Try Again!");
+	if (!equation.contains('x') && !equation.contains('X') && !equation.contains('=')) {
+		m_inputText = TEXT("输入错误! 请重新尝试! 未知数必须是 'x' 或 'X'.");
+		UpdateData(FALSE);
 		return;
 	}
 
-	std::string out_string = std::format("In range : [{} {}]   ", x_range.first, x_range.second);
+	std::string out_string = std::format("在范围 : [{} {}] 中  ", x_range.first, x_range.second);
 
 	std::vector<std::string> const terms = extract_terms(equation);
 	std::vector<Element> const polynomial{parse_terms(terms)};
+
 	if (const auto answer{ solve_polynomial(polynomial, x_range) };
 		!answer.empty()) {
-		out_string += "Answer is : ";
+		out_string += std::format("总共有 {} 个解. 它们是 : ", answer.size());
 		for (auto val : answer) {
-			out_string += std::format("{} ", val);
+			out_string += std::format(" x = {} ", val);
 		}
 		out_string += "\n";
 	} else {
-		out_string += "No Answer";
+		out_string += "没有答案";
 	}
 
 	m_outputText = CA2WEX(out_string.c_str());
