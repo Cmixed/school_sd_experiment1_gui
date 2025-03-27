@@ -36,7 +36,7 @@ public:
 	[[nodiscard]] double value(const double val) const
 	{
 		if ((this->ratio) == 0) return 0;
-		if (val == 0 && (this->power) != 0) return 0;
+		if (val == 0.0 && (this->power) != 0) return 0;
 		if ((this->power) == 0) return (this->ratio);
 		return (this->ratio) * std::pow(val, this->power);
 	}
